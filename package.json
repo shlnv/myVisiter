@@ -11,9 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.1",
-    "fs": "^0.0.1-security",
+    "express-ws": "^5.0.2",
     "puppeteer": "^15.3.0",
     "puppeteer-extra": "^3.3.0",
-    "puppeteer-extra-plugin-recaptcha": "^3.6.2"
+    "puppeteer-extra-plugin-recaptcha": "^3.6.2",
+    "ws": "^8.8.0"
   }
 }

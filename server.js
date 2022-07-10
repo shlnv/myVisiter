@@ -1,24 +1,34 @@
 const express = require('express');
-const puppeteer = require('puppeteer-extra');
-const recaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
-const path = require('path');
-const lehazminTor = require("./puppet");
-const PORT = 5000;
 const app = express();
+const WSserver = require('express-ws')(app);
+const eventEmitter = require('node:events');
+const datesEmitter = new eventEmitter();
+const lehazminTor = require("./puppet");
+// app.use(express.json());
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log('Server started');
+    console.log('Server started on port ' + PORT);
 })
 
-app.use(express.json())
+app.ws('/', (ws, req) => {
+    console.log('Client with IP ' + req.socket.remoteAddress + ' connected');
 
-app.get('/', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'index.html'))
-})
-app.post('/', (req, res) => {
-    const data = req.body;
-    const teudat = data.teudat;
-    const phone = data.phone;
-    const address = data.address;
-    lehazminTor(teudat, phone, address)
+    datesEmitter.on('calendarParsed', (datesWithSelectorsObj) => {
+        console.log(datesWithSelectorsObj)
+        ws.send(JSON.stringify(datesWithSelectorsObj));
+    })
+
+    ws.on('message', (data) => {
+        data = JSON.parse(data);
+        if (data instanceof Object) {
+            const teudat = data.teudat;
+            const phone = data.phone;
+            const address = data.address;
+            lehazminTor(teudat, phone, address, datesEmitter)
+        } else if (data instanceof String) {
+            datesEmitter.emit('dateChosen', data)
+        }
+    })
 });
+
