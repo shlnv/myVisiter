@@ -124,7 +124,7 @@ const lehazminTor = async (teudatZehutNumber, phoneNumber, address, dateEmitter,
         })
     );
 
-    for (let attempts = 0; attempts < 20 || !orderedFlag; attempts++) {
+    for (let attempts = 0; attempts < 20; attempts++) {
         try {
             var browser = await puppeteer.launch(browserOptions);
             console.log('browser started with option headless mode: ' + browserOptions.headless);
@@ -246,7 +246,7 @@ const lehazminTor = async (teudatZehutNumber, phoneNumber, address, dateEmitter,
             console.log(error);
             await browser.close();
         }
-
+        break;
     }
     await browser.close();
     readyEmitter.emit('ready');
