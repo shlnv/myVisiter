@@ -10,43 +10,97 @@
         <option disabled>Select option</option>
         <option selected value="Get teudat zehut">Get teudat zehut</option>
     </select></p>
-    <p><input type="text" name="teudat" placeholder="teudat zehut number" value="346316136"></p>
-    <p><input type="text" name="phone" placeholder="phone number" value="0538535491"></p>
-    <p><input type="text" name="address" value="שדרות פל ים"></p>
-    <p><input type="submit" value="Order visit"></p>
+    <p><input type="text" name="teudat" placeholder="teudat zehut number"></p>
+    <p><input type="text" name="phone" placeholder="phone number"></p>
+    <p><input type="text" name="address" placeholder="city or branch address"></p>
+    <p><input type="submit" value="Order visit" id="submitButton"></p>
 </form>
 <h1 hidden id="loading">Loading</h1>
 <script>
     const socket = new WebSocket('ws://localhost:5000/');
+    const submitButton = document.getElementById('submitButton')
+    let dateSelect;
+    let timeSelect;
 
     socket.onopen = () => {
         console.log('Connected to the ws server')
     }
 
-    let dateSelect;
     socket.onmessage = (event, () => {
         console.log(event.data)
         let data = JSON.parse(event.data);
         if (data[0].date) {
             console.log(data);
             dateSelect = document.createElement("select");
+            dateSelect.onchange = dateSelectOnChangeHandler;
+            const disabledOption = document.createElement("option");
+            const disabledOptionContent = document.createTextNode("Select the date");
+            disabledOption.disabled = true;
+            disabledOption.selected = true;
+            disabledOption.appendChild(disabledOptionContent);
+            dateSelect.appendChild(disabledOption)
             for (let i = 0; i < data.length; i++) {
                 let option = document.createElement("option");
                 const date = new Date(data[i].date);
                 option.value = data[i].selector;
-                ;
                 const textContent = document.createTextNode(`${date.getDate()}.${date.getMonth()}.${date.getFullYear()}`)
                 option.appendChild(textContent);
                 dateSelect.appendChild(option);
             }
             document.body.append(dateSelect);
+
+            alert('Choose the date!')
+
+        } else if (data[0].time) {
+            console.log(data);
+            timeSelect = document.createElement("select");
+            timeSelect.onchange = timeSelectOnChangeHandler;
+            const disabledOption = document.createElement("option");
+            const disabledOptionContent = document.createTextNode("Select the time");
+            disabledOption.appendChild(disabledOptionContent);
+            disabledOption.disabled = true;
+            disabledOption.selected = true;
+            timeSelect.appendChild(disabledOption);
+            for (let i = 0; i < data.length; i++) {
+                let option = document.createElement("option");
+                const time = data[i].time;
+                option.value = data[i].selector;
+                const textContent = document.createTextNode(time)
+                option.appendChild(textContent);
+                timeSelect.appendChild(option);
+            }
+            document.body.append(timeSelect);
+
+            alert('Choose the time!')
+        } else if (data[0].status = 'ready') {
+            alert('Success! Queue is ordered!')
+            window.location.reload();
         }
     })
 
-    // dateSelect.onchange(() => {
-    //     socket.send(dateSelect.value)
-    // })
+    const dateSelectOnChangeHandler = () => {
+        console.log('dateSelectOnChangeHandler()');
+        socket.send(JSON.stringify({
+            type: 'date',
+            selector: dateSelect.value
+        }));
+        dateSelect.disabled = true;
+    }
 
+    const timeSelectOnChangeHandler = () => {
+        console.log('timeSelectOnChangeHandler()');
+        socket.send(JSON.stringify({
+            type: 'time',
+            selector: timeSelect.value
+        }));
+        timeSelect.disabled = true;
+    }
+
+    socket.onerror = (ev) => {
+        console.log('Web socket error: ' + ev);
+        submitButton.disabled = false;
+        loading.hidden = true;
+    }
 
     const loading = document.getElementById('loading');
 
@@ -57,10 +111,10 @@
             phone: event.target[2].value,
             address: event.target[3].value
         }
-        event.target[4].disabled = true;
+        console.log(data)
+        submitButton.disabled = true;
         loading.hidden = false;
         socket.send(JSON.stringify(data));
-
     }
 </script>
 </body>

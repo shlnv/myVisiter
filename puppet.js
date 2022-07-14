@@ -1,60 +1,80 @@
 const puppeteer = require('puppeteer-extra');
 const recaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
+const fullXPathToSelector = require("./utils");
 
-const lehazminTor = async (teudatZehutNumber, phoneNumber, address, datesEmitter) => {
+
+const lehazminTor = async (teudatZehutNumber, phoneNumber, address, dateEmitter, timeEmitter, readyEmitter) => {
+    console.log('LehazminTor function running...')
     let orderedFlag = false;
     let calendarPassedFlag = false;
+    let htmls = [];
+    let dates = [];
+    let times = [];
 
     const populationAndImmigrationAuthority = 'https://myvisit.com/#!/home/provider/56';
-    const signInWithReCaptcha = 'https://myvisit.com/#!/home/signin/';
 
     const browserOptions =
         {
-            headless: false,
-            defaultViewport: null,
-            slowMo: 10
+            headless: true,
+            slowMo: 20
         };
 
+    const getTimes = async (page) => {
+        console.log('getTimes function started')
+        const timeSelector = `main > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > ul`
+        console.log(timeSelector)
+
+        const getTimeArray = async (page) => {
+            console.log('getTimeArray function started')
+            htmls = await page.$$eval(timeSelector + ' > li', tms => {
+                console.log('parsed: ' + tms);
+                return tms.map(tm => tm.outerHTML);
+            });
+            console.log('array of time htmls: ' + htmls);
+            const timeExp = /\d{1,2}:\d{2}/;
+            // \s[A-P]{2}
+            times = htmls.map(time => timeExp.exec(time)[0]);
+        }
+        const createTimeAndSelectorObjectArray = (timeSelector) => {
+            let arr = [];
+            for (let i = 0; i < times.length; i++) {
+                let timeAndSelectorObject = {
+                    time: times[i],
+                    selector: timeSelector + ' > li:nth-child(' + +(i + 1) + ') > button[data-ng-click="chooseTime(s.Time)"]'
+                };
+                arr.push(timeAndSelectorObject);
+            }
+            return arr;
+        }
+        await page.waitForTimeout(2000);
+        await getTimeArray(page);
+        let arr = createTimeAndSelectorObjectArray(timeSelector);
+        return arr;
+
+    }
 
     const getCalendar = async (page) => {
         console.log('getCalendar function started')
-        let htmls = [];
-        let dates = [];
-        let calendarSelector = '#mCSB_-1_container > ul > li';
+        const calendarSelector = 'body > div > div:nth-child(1) > div > div > main > div > div > div > div > div:nth-child(1) > div > div:nth-child(2) > div > div > div > div > div:nth-child(2) > div > div > div > div > div > div > div:nth-child(1) > div:nth-child(3) > div > div:nth-child(1) > ul > li:nth-child(2) > div:nth-child(2) > div > div > div > div > div:nth-child(1) > ul'
 
-        // #mCSB_4_container > ul > li:nth-child(1)
-
-        try {
-            await page.waitForSelector(calendarSelector, {timeout: 3000});
-        } catch (e) {
-            for (let i = 0; i < 100; i++) {
+        const getDateArray = async (page) => {
+            for (let i = 0; i < 10; i++) {
                 try {
-                    calendarSelector = '#mCSB_' + i + '_container > ul > li';
-                    await page.waitForSelector(calendarSelector, {timeout: 100});
-                    break;
+                    htmls = await page.$$eval(`${calendarSelector} > li > button`, dates => {
+                        return dates.map(date => date.outerHTML)
+                    });
+                    if (htmls == []) {
+                        await getDateArray(page);
+                    }
                 } catch (e) {
-                    console.log('selector ' + calendarSelector + ' was tried');
-                    calendarSelector = null;
+                    console.log(e)
                 }
             }
-        }
-        if (!calendarSelector || calendarSelector == '#mCSB_-1_container') {
-            throw new Error('Calendar is unavailable')
-        }
-        const getDateArray = async (page) => {
-            console.log(calendarSelector)
-            //#mCSB_8_container > ul > li:nth-child(1)
-            htmls = await page.$$eval(calendarSelector, dates => {
-                console.log(dates)
-                return dates.map(date => date.outerHTML);
-            });
 
             console.log(htmls);
-
             const dateExp = /\D{6,},\s(\D{3,}\s\d{1,2},\s\d{4})/;
-
             dates = htmls.map(html => dateExp.exec(html)[1]);
-
+            htmls = [];
             console.log(dates);
         }
 
@@ -63,120 +83,173 @@ const lehazminTor = async (teudatZehutNumber, phoneNumber, address, datesEmitter
             for (let i = 0; i < dates.length; i++) {
                 let dateAndSelectorObject = {
                     date: new Date(dates[i]),
-                    selector: calendarSelector + ' > ul > li:nth-child(' + +(i + 1) + ') > button'
+                    selector: calendarSelector + ' > li:nth-child(' + +(i + 1) + ') > button'
                 };
                 arr.push(dateAndSelectorObject);
             }
             return arr;
         }
+
+        await page.waitForSelector(calendarSelector)
         await getDateArray(page);
         let arr = createDateAndSelectorObjectArray(calendarSelector);
         return arr;
-
-
     }
 
 
     const solveRecaptcha = async (page) => {
-        await page.goto(signInWithReCaptcha);
+        console.log('solveRecaptcha function is running')
+        await page.goto(populationAndImmigrationAuthority);
+        console.log('redirected to the recaptcha')
+        console.log('waiting for selector textarea[id="g-recaptcha-response"]')
+        await page.waitForSelector('textarea[id="g-recaptcha-response"]')
+        console.log('running method solveRecaptchas from recaptchaPlugin')
         await page.solveRecaptchas();
-        await page.waitForSelector('#continueSkip > div.enter > div > a');
-        await page.waitForTimeout(2000);
-        await page.click('#continueSkip > div.enter > div > a');
-        await page.waitForSelector('#continueSkip > div:nth-child(3) > div > div.highlighted.enter > button');
-        await page.click('#continueSkip > div:nth-child(3) > div > div.highlighted.enter > button');
+        console.log('recaptcha solved')
+        console.log('Waiting for continue button')
+        await page.waitForSelector('a[data-i18n="ContinueWithoutSignIn"]')
+        await page.click('a[data-i18n="ContinueWithoutSignIn"]');
+        console.log('continueButton clicked');
+        console.log('waiting for selector button[ng-click="continueAsAnonymous();"]')
+
+        await page.waitForSelector('button[ng-click="continueAsAnonymous();"]')
+        await page.click('button[ng-click="continueAsAnonymous();"]');
+        await page.click('button[ng-click="continueAsAnonymous();"]');
+        console.log('button[ng-click="continueAsAnonymous();"] clicked')
     }
 
     puppeteer.use(
         recaptchaPlugin({
             provider: {id: '2captcha', token: 'f6cc392481a659715f7ef3484387aeb4'},
-            visualFeedback: true
         })
     );
+
     for (let attempts = 0; attempts < 20 || !orderedFlag; attempts++) {
         try {
             var browser = await puppeteer.launch(browserOptions);
+            console.log('browser started with option headless mode: ' + browserOptions.headless);
             let page = await browser.newPage();
-            await page.setDefaultNavigationTimeout(120000);
-            await page.setDefaultTimeout(120000);
+            console.log('browser tab opened');
+            let defaultTimeuot = 120000;
+            await page.setDefaultNavigationTimeout(defaultTimeuot);
+            await page.setDefaultTimeout(defaultTimeuot);
+
+            console.log('default timeouts was set to ' + defaultTimeuot)
 
             await solveRecaptcha(page);
-            console.log('Recaptcha solved')
-
-            await page.goto(populationAndImmigrationAuthority);
-            await page.waitForSelector('#ID_KEYPAD');
-            await page.type('#ID_KEYPAD', teudatZehutNumber);
-            await page.keyboard.press('Enter');
-            await page.waitForSelector('#PHONE_KEYPAD');
-            await page.type('#PHONE_KEYPAD', phoneNumber);
-            await page.keyboard.press('Enter');
-            await page.waitForTimeout(2000);
-            await page.waitForSelector(`#\\31 56`); //#\32 165תיאום\ פגישה\ לתיעוד\ ביומטרי
-            await page.click(`#\\31 56`);
-            await page.waitForSelector('#searchInput');
-            await page.waitForTimeout(1500);
-            await page.type('#searchInput', address);
-            await page.waitForTimeout(3000);
-            await page.click('#searchInput');
-            await page.keyboard.press('Tab');
-            await page.keyboard.press('Tab');
-            await page.keyboard.press('Enter');
-//#accordiongroup-155-3117-panel > div > div > div > div > div > ul > li
-            let selector = 'button[ng-click="selectServicePage(i.serviceId);"]'
-            // await page.waitForSelector(`#\\32 219תיאום\\ פגישה\\ לתיעוד\\ ביומטרי`); //
-            // #\32 165תיאום\ פגישה\ לתיעוד\ ביומטרי
-            await page.waitForSelector(selector);
-            // await page.click(`#\\32 219תיאום\\ פגישה\\ לתיעוד\\ ביומטרי`);
-            await page.click(selector);
-            for (let attempts = 0; attempts < 20; attempts++) {
+            console.log('Recaptcha solved');
+            await page.setDefaultNavigationTimeout(20000);
+            await page.setDefaultTimeout(20000);
+            console.log('default timeouts was set to 20 seconds');
+            console.log('waiting for id input[ng-change="inputChange(questionnaireForm)"]');
+            await page.waitForTimeout(4000);
+            await page.waitForSelector('input[ng-change="inputChange(questionnaireForm)"]');
+            console.log('input[ng-change="inputChange(questionnaireForm)"] is on the page')
+            for (let i = 0; i < 5; i++) {
                 try {
-                    await page.waitForSelector(`#\\36 f2ffb58-b985-436c-a3f7-f5913299fa30`);
-                    await page.click(`#\\36 f2ffb58-b985-436c-a3f7-f5913299fa30`);
-
+                    await page.type('input[ng-change="inputChange(questionnaireForm)"]', teudatZehutNumber);
+                    await page.keyboard.press('Enter');
+                    console.log('teudat zehut accepted');
+                    console.log('waiting for #PHONE_KEYPAD')
+                    await page.waitForTimeout(2000)
+                    await page.waitForSelector('#PHONE_KEYPAD', {timeout: 4000});
+                    await page.type('input[ng-change="inputChange(questionnaireForm)"]', phoneNumber);
+                    await page.keyboard.press('Enter');
+                    console.log('phone number accepted')
+                    break;
+                } catch (e) {
+                    console.log(e)
+                }
+            }
+            console.log('waiting for selector li[data-ng-click="selectServiceType(serviceType)"]')
+            await page.waitForTimeout(2000);
+            await page.waitForSelector('li[data-ng-click="selectServiceType(serviceType)"]');
+            await page.click('li[data-ng-click="selectServiceType(serviceType)"]');
+            await page.waitForSelector('input[data-ng-change="updateparent({providersQuery: providersQuery})"]');
+            await page.waitForTimeout(3000);
+            await page.type('input[data-ng-change="updateparent({providersQuery: providersQuery})"]', address);
+            await page.waitForTimeout(5000);
+            await page.click('input[data-ng-change="updateparent({providersQuery: providersQuery})"]');
+            await page.keyboard.press('Tab');
+            await page.keyboard.press('Tab');
+            await page.keyboard.press('Enter');
+            await page.waitForTimeout(1000);
+            await page.waitForSelector('button[ng-click="selectServicePage(i.serviceId);"]');
+            await page.click('button[ng-click="selectServicePage(i.serviceId);"]');
+            let datesWithSelectorsObjs = null;
+            for (let attempts = 0; attempts < 10; attempts++) {
+                try {
+                    await page.waitForSelector('ul[aria-labelledby="lblmultiorcheck"] > li:nth-child(1)')
+                    await page.click('ul[aria-labelledby="lblmultiorcheck"] > li:nth-child(1)');
                     console.log('goes to calendar page');
-                    const datesWithSelectorsObj = await getCalendar(page);
-                    datesEmitter.emit('calendarParsed', datesWithSelectorsObj)
+                    datesWithSelectorsObjs = await getCalendar(page);
+                    dateEmitter.emit('calendarParsed', datesWithSelectorsObjs)
                     calendarPassedFlag = true;
+                    break;
                 } catch (e) {
                     console.log(e);
                     await page.reload();
                     await page.waitForTimeout(2000);
                 }
-
-                await page.setDefaultNavigationTimeout(0);
-                await page.setDefaultTimeout(0);
-
-                // const waitForEmitter = async (emitter, event) =>
-                // {
-                //     return new Promise((resolve, reject) =>
-                //     {
-                //         let dateSelector = (val)=>
-                //         {
-                //         datesEmitter.on('dateChosen', (dateSelectorFromClient) => {})
-                //         }
-                //     })
-                //
-                // }
-                await page.click(dateSelector);
-
-                // await page.evaluate(() => {
-                //     location.reload();
-                // })
             }
 
-            // await page.waitForRequest('https://myvisit.com/#!/home/summary/');
-            // await page.waitForSelector('#accordiongroup-2074-6541-panel > div > div > div:nth-child(2) > div:nth-child(1) > button');
-            // await page.click('#accordiongroup-2074-6541-panel > div > div > div:nth-child(2) > div:nth-child(1) > button');
+            if (calendarPassedFlag && datesWithSelectorsObjs) {
+                await page.setDefaultNavigationTimeout(600000);
+                await page.setDefaultTimeout(600000);
+                console.log('default timeouts set to 10 minutes');
+            }
+            let dateSelector;
+            await new Promise((resolve, reject) => {
+                dateEmitter.on('dateChosen', (selector) => {
+                    console.log('dateEmitter in Promise: ' + selector);
+                    dateSelector = selector;
+                    resolve();
+                })
+                dateEmitter.on('error', reject);
+            });
+            console.log('got selector from emitter: ' + dateSelector);
+            let timesWithSelectorsObjs = []
+            for (let i = 0; i < 10; i++) {
+                try {
+                    await page.click(dateSelector);
+                    await page.click(dateSelector);
+                    timesWithSelectorsObjs = await getTimes(page);
+                    if (timesWithSelectorsObjs == [] || !timesWithSelectorsObjs) {
+                        throw new Error('Time was not parsed')
+                    }
+                    break;
+                } catch (e) {
+                    console.log(e)
+                }
+            }
+            timeEmitter.emit('timeParsed', timesWithSelectorsObjs)
+            let timeSelector;
+            await new Promise((resolve, reject) => {
+                timeEmitter.on('timeChosen', (selector) => {
+                    console.log('Emitter in Promise: ' + selector);
+                    timeSelector = selector;
+                    resolve();
+                })
+                timeEmitter.on('error', reject);
+            })
 
-            // await page.tracing.stop();
-            // await browser.close();
+            await page.click(timeSelector);
+            console.log('waiting for selector button[data-ng-click="createAppointment()"]')
+            await page.waitForSelector('button[data-ng-click="createAppointment()"]');
+            console.log('final button is ready')
+            // await page.click('button[data-ng-click="createAppointment()"]');
             orderedFlag = true;
-        } catch (error) {
+            break;
+
+        } catch
+            (error) {
             console.log(error);
             await browser.close();
         }
 
     }
+    await browser.close();
+    readyEmitter.emit('ready');
 }
 
 module.exports = lehazminTor;
