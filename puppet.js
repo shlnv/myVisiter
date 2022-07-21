@@ -246,7 +246,6 @@ const lehazminTor = async (teudatZehutNumber, phoneNumber, address, dateEmitter,
             console.log(error);
             await browser.close();
         }
-        break;
     }
     await browser.close();
     readyEmitter.emit('ready');
