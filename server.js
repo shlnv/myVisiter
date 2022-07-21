@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const ws = require('express-ws')(app);
 const eventEmitter = require('node:events');
-const dateEmitter = new eventEmitter();
+const calendarsEmitter = new eventEmitter();
 const timeEmitter = new eventEmitter();
 const readyEmitter = new eventEmitter();
 const lehazminTor = require("./puppet");
@@ -15,9 +15,9 @@ app.listen(PORT, () => {
 app.ws('/', (ws, req) => {
     console.log('Client with IP ' + req.socket.remoteAddress + ' connected');
 
-    dateEmitter.on('calendarParsed', (datesWithSelectorsObj) => {
-        console.log(datesWithSelectorsObj);
-        ws.send(JSON.stringify(datesWithSelectorsObj));
+    calendarsEmitter.on('calendarsParsed', (calendars) => {
+        console.log(calendars);
+        ws.send(JSON.stringify({type: 'calendars', data: calendars}));
     });
 
     timeEmitter.on('timeParsed', (timesWithSelectorsObjs) => {
@@ -37,12 +37,11 @@ app.ws('/', (ws, req) => {
             console.log('inside if(data instanceof Object) in websocket')
             const teudat = data.teudat;
             const phone = data.phone;
-            const address = data.address;
-            lehazminTor(teudat, phone, address, dateEmitter, timeEmitter, readyEmitter);
+            lehazminTor(teudat, phone, calendarsEmitter, timeEmitter, readyEmitter);
         } else if(data.type == 'date') {
             console.log('inside date if in websocket')
             console.log(data);
-            dateEmitter.emit('dateChosen', data.selector)
+            calendarsEmitter.emit('dateChosen', data.selector)
         }
         else if(data.type = 'time') {
             console.log('inside time if in websocket')

@@ -10,8 +10,8 @@
         <option disabled>Select option</option>
         <option selected value="Get teudat zehut">Get teudat zehut</option>
     </select></p>
-    <p><input type="text" name="teudat" placeholder="teudat zehut number"></p>
-    <p><input type="text" name="phone" placeholder="phone number"></p>
+    <p><input type="text" name="teudat" placeholder="teudat zehut number" value="346316144"></p>
+    <p><input type="text" name="phone" placeholder="phone number" value="0538535498"></p>
     <p><input type="text" name="address" placeholder="city or branch address"></p>
     <p><input type="submit" value="Order visit" id="submitButton"></p>
 </form>
@@ -29,25 +29,36 @@
     socket.onmessage = (event, () => {
         console.log(event.data)
         let data = JSON.parse(event.data);
-        if (data[0].date) {
+        if (data.type == 'calendars') {
             console.log(data);
-            dateSelect = document.createElement("select");
-            dateSelect.onchange = dateSelectOnChangeHandler;
-            const disabledOption = document.createElement("option");
-            const disabledOptionContent = document.createTextNode("Select the date");
-            disabledOption.disabled = true;
-            disabledOption.selected = true;
-            disabledOption.appendChild(disabledOptionContent);
-            dateSelect.appendChild(disabledOption)
-            for (let i = 0; i < data.length; i++) {
-                let option = document.createElement("option");
-                const date = new Date(data[i].date);
-                option.value = data[i].selector;
-                const textContent = document.createTextNode(`${date.getDate()}.${date.getMonth()}.${date.getFullYear()}`)
-                option.appendChild(textContent);
-                dateSelect.appendChild(option);
+            let calendars = data.data;
+            for (let i = 0; i < calendars.length; i++) {
+                if (calendars[i] != []) {
+                    let calendar = document.createElement("p");
+                    calendar.innerHTML = `<span>${calendars[i].location}</span>`
+
+
+                    dateSelect = document.createElement("select");
+                    dateSelect.onchange = dateSelectOnChangeHandler;
+                    const disabledOption = document.createElement("option");
+                    const disabledOptionContent = document.createTextNode("Select the date");
+                    disabledOption.disabled = true;
+                    disabledOption.selected = true;
+                    disabledOption.appendChild(disabledOptionContent);
+                    dateSelect.appendChild(disabledOption)
+                    for (let j = 0; j < data.length; j++) {
+                        let option = document.createElement("option");
+                        const date = new Date(calendars[i][j].date);
+                        option.value = calendars[i][j].selector;
+                        const textContent = document.createTextNode(`${date.getDate()}.${date.getMonth()}.${date.getFullYear()}`)
+                        option.appendChild(textContent);
+                        dateSelect.appendChild(option);
+                    }
+
+                    calendar.append(dateSelect);
+                    window.document.append(calendar);
+                }
             }
-            document.body.append(dateSelect);
 
             alert('Choose the date!')
 
@@ -109,7 +120,6 @@
         let data = {
             teudat: event.target[1].value,
             phone: event.target[2].value,
-            address: event.target[3].value
         }
         console.log(data)
         submitButton.disabled = true;
