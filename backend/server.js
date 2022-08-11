@@ -1,3 +1,5 @@
+const dotenv = require('dotenv');
+dotenv.config();
 const express = require('express');
 const app = express();
 const ws = require('express-ws')(app);
@@ -5,47 +7,37 @@ const eventEmitter = require('node:events');
 const calendarsEmitter = new eventEmitter();
 const timeEmitter = new eventEmitter();
 const readyEmitter = new eventEmitter();
-const lehazminTor = require("./puppet");
-const PORT = 5000;
+const main = require('./main');
 
-app.listen(PORT, () => {
-    console.log('Server started on port ' + PORT);
+
+app.listen(process.env.PORT, () => {
+    console.log('Server started on port ' + process.env.PORT);
 })
 
 app.ws('/', (ws, req) => {
     console.log('Client with IP ' + req.socket.remoteAddress + ' connected');
 
     calendarsEmitter.on('calendarsParsed', (calendars) => {
-        console.log(calendars);
         ws.send(JSON.stringify({type: 'calendars', data: calendars}));
     });
 
     timeEmitter.on('timeParsed', (timesWithSelectorsObjs) => {
-        console.log(timesWithSelectorsObjs);
         ws.send((JSON.stringify(timesWithSelectorsObjs)));
     });
 
-    readyEmitter.on('ready',()=>{
-        console.log('The queue is ordered');
+    readyEmitter.on('ready', () => {
         ws.send(JSON.stringify([{status: 'ready'}]));
     });
 
     ws.on('message', (data) => {
         data = JSON.parse(data);
-        console.log('received data: ' + data);
         if (data.teudat) {
-            console.log('inside if(data instanceof Object) in websocket')
             const teudat = data.teudat;
             const phone = data.phone;
-            lehazminTor(teudat, phone, calendarsEmitter, timeEmitter, readyEmitter);
-        } else if(data.type == 'date') {
-            console.log('inside date if in websocket')
-            console.log(data);
-            calendarsEmitter.emit('dateChosen', data.selector)
-        }
-        else if(data.type = 'time') {
-            console.log('inside time if in websocket')
-            console.log(data)
+            main(teudat, phone, calendarsEmitter, timeEmitter, readyEmitter);
+        } else if (data.type == 'date') {
+            calendarsEmitter.emit('dateChosen', {location: data.location, selector: data.selector})
+        } else if (data.type = 'time') {
             timeEmitter.emit('timeChosen', data.selector)
         }
     })
