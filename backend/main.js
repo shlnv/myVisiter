@@ -16,7 +16,7 @@ const main = async (teudatZehutNumber, phoneNumber, calendarsEmitter, timeEmitte
 
     const browserOptions =
         {
-            headless: process.env.HEADLESS,
+            headless: process.env.HEADLESS === 'true',
             slowMo: process.env.SLOWMO
         };
 
