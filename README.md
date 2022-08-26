@@ -10,4 +10,4 @@ The bot solves repacha, parses free dates all over Israel and offers to choose t
 
 Now the site has detected the bot and 2captcha-plugin is no longer working with it. To use the bot, you can change the plugin or disable the automatic recaptcha solving. Also on the side of the site there began problems with getting a list of dates.
 
-I have no desire to play these games with a government site, so I leave the work at this stage.
+I have no desire to play these games with a government site, so I leave the work at this stage. And it is still a working algorithm.
