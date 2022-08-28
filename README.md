@@ -2,10 +2,12 @@
 
 The bot orders a queue to receive teudat zehut.
 
-To run use the path src/backend/server.js
-Then run the file from the frontend folder in any browser.
-The file connects to the server via web socket.
+To run use node src/backend/server.js
+Then run html-file at "frontend" folder in any browser.
+The file connects to server on port 5000 via web socket.
 
 The bot solves repacha, parses free dates all over Israel and offers to choose the most convenient one.
 
-Now the site has detected the bot and 2captcha-plugin is no longer working with it. To use the bot, you can change the plugin or disable the automatic recaptcha solving. Also on the side of the site there began problems with getting a list of dates.
+I was using 2captcha-plugin for puppeteer to connect with service https://2captcha.com/ but it no longer solving captcha on this site. To use bot, you can change the plugin or disable automatic recaptcha solving (comment line <i>await solveRecaptcha(page);</i> at main.js in backend folder).
+
+And you should always enter your valid id-number.
