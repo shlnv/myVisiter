@@ -2,7 +2,7 @@
 
 The bot orders a queue to receive teudat zehut.
 
-To run use node src/backend/server.js
+To run use <i>node src/backend/server.js</i>
 Then run html-file at "frontend" folder in any browser.
 The file connects to server on port 5000 via web socket.
 
